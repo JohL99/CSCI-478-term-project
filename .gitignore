@@ -1,0 +1,6 @@
+.venv
+data.json 
+data_copy.json
+__pycache__
+*.csv
+*.png
