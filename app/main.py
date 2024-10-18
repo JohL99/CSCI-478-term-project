@@ -2,22 +2,27 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from model import model
+from randomForestRegressor import model
 
 
 DATA_PATH = "data.json"
+DATA_CSV = "data.csv"
 ticker = "MSFT"
 
 def fetchAndSaveData():
     msft = yf.Ticker(ticker)
     msftHist = msft.history(period="max")
+    msftHist.to_csv(DATA_CSV)
 
     selectedColumns = ['Open', 'High', 'Low', 'Close']
     msftHistFiltered = msftHist[selectedColumns]
 
     msftHistFiltered.to_json(DATA_PATH)
+    
+    #msftHist.to_json(DATA_PATH)
 
     return msftHistFiltered
+    #return msftHist
 
 def saveDataFrameToCSV(df, file_name):
     # Set index=True to keep the datetime index in the file
@@ -91,3 +96,6 @@ if __name__ == "__main__":
 
     
     plotBacktestedData('backtested_data.csv', 'backtested_plot.png')
+
+
+  

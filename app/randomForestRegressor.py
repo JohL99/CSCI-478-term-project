@@ -43,6 +43,9 @@ class model():
         # Prepare features
         X = df[['Open', 'High', 'Low', 'Moving_Avg_5', 'Moving_Avg_10', 'Daily_Return', 'Volatility']].fillna(0)  # Filling NaN values
         y = df['Close']
+        #y_trinary = (y > x['open']) up
+        #y_trinary = (y < x['open']) down
+        #y_trinary = (y == x['open']) no change
 
         # Split the data into training and test sets (80% train, 20% test)
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -50,6 +53,10 @@ class model():
         # Standardize the features
         self.X_train = self.scaler.fit_transform(self.X_train)
         self.X_test = self.scaler.transform(self.X_test)
+
+        # y_trinary = (y_pred > x) up
+        # y_trinary = (y_pred < x) down
+        # y_trinary = (y_pred == x) no change
 
     def train(self):
         # Train the model
