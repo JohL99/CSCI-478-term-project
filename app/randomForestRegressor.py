@@ -1,5 +1,5 @@
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor  # Importing RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor  
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 
@@ -29,8 +29,13 @@ class model():
         df.index = pd.to_numeric(df.index)
         df.index = pd.to_datetime(df.index, unit="ms")
         
-        df['Moving_Avg_5'] = df['Close'].rolling(window=5).mean()
-        df['Moving_Avg_10'] = df['Close'].rolling(window=10).mean()
+        df['Moving_Avg_5'] = df['Close'].rolling(window=20).mean()
+        df['Moving_Avg_10'] = df['Close'].rolling(window=60).mean()
+        # check when Moving_Avg_5 crosses Moving_Avg_10
+        # if Moving_Avg_5 > Moving_Avg_10, market decline bear market
+        # if Moving_Avg_5 < Moving_Avg_10, market rise bull market
+
+
         df['Daily_Return'] = df['Close'].pct_change()
         df['Volatility'] = df['Close'].rolling(window=5).std()
         df.fillna(0, inplace=True)

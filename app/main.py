@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from randomForestRegressor import model
+from data import data
+
 
 
 DATA_PATH = "data.json"
