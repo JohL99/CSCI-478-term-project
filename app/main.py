@@ -41,7 +41,7 @@ def main():
     #timer.toc()
     print("Backtesting done.")
     
-    mdl.plotBacktestedData(DATA_CSV, 'backtested_plot.png')
+    #mdl.plotBacktestedData(DATA_CSV, 'backtested_plot.png')
     
 if __name__ == "__main__":
     main()

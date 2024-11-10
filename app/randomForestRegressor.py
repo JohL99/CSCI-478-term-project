@@ -21,6 +21,13 @@ class model():
         self.data_frame['predictedClose'] = 0.0
         self.data_frame['predictedClose'] = self.data_frame['predictedClose'].astype(float)
         
+        # Select columns to standardize
+        cols_to_standardize = ['open', 'high', 'low', 'close']
+        scaler = StandardScaler()
+        
+        # Apply scaler to specified columns
+        self.data_frame[cols_to_standardize] = scaler.fit_transform(self.data_frame[cols_to_standardize])
+        
         X = self.data_frame[
             ['open', 
              'high', 
