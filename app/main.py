@@ -17,8 +17,6 @@ def main():
     
     df = dh.loadDataToDF()
     
-    print("Data loaded from csv file.")
-    
     if df is None:
         print("Error: unable to load data from csv file.")
         exit()
@@ -32,8 +30,7 @@ def main():
     mdl.train()
     print("Model trained.")
     
-    mse = mdl.evaluate()
-    print(F"Model evaluated, MSE: {mse}")
+    print(mdl.evaluate())
     
     print("Backtesting...")
     #timer.tic()
@@ -41,7 +38,7 @@ def main():
     #timer.toc()
     print("Backtesting done.")
     
-    #mdl.plotBacktestedData(DATA_CSV, 'backtested_plot.png')
+    dh.plotBacktestedData('backtested_plot.png')
     
 if __name__ == "__main__":
     main()
