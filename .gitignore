@@ -1,6 +1,8 @@
 .venv
 data.json 
+config.json
 data_copy.json
 __pycache__
 *.csv
 *.png
+*.pk1
