@@ -3,17 +3,18 @@ from pytictoc import TicToc
 from randomForestRegressor import model
 from data import dataHelper
 
-DATA_PATH = "data.json"
 DATA_CSV = "data.csv"
-ticker = "MSFT"
+DATA_TEST_CSV = "data_test.csv"
+tickerTrain = "MSFT"
+tickerTest = "BA"
 
-def main(): 
+def mainTrain(): 
     print("starting...\n")
     
     #timer = TicToc()
     
     dh = dataHelper(outputfile=DATA_CSV)
-    dh.prepareData(ticker, "full", "csv")
+    dh.prepareData(tickerTrain, "full", "csv")
     
     df = dh.loadDataToDF()
     
@@ -40,8 +41,44 @@ def main():
     
     dh.plotBacktestedData('backtested_plot.png')
     
+    print("done.")
+    
+def mainTest():
+    print("starting...\n")
+    
+    #timer = TicToc()
+    
+    dh = dataHelper(outputfile=DATA_TEST_CSV)
+    #dh.prepareData(tickerTest, "full", "csv")
+    
+    df = dh.loadDataToDF()
+    
+    if df is None:
+        print("Error: unable to load data from csv file.")
+        exit()
+    
+    #print(df.head())
+    #mdl = model(df)
+    print("Model created.")
+    
+    #mdl.loadModel()
+    #mdl.loadScaler()
+    print("Model and scaler loaded.")
+    
+    print("Backtesting...")
+    #timer.tic()
+    #mdl.backtestNewData(DATA_TEST_CSV)
+    #timer.toc()
+    print("Backtesting done.")
+    
+    dh.plotBacktestedData('backtested_plot.png')
+    
+    print("done.")
+    
+    
 if __name__ == "__main__":
-    main()
+    #mainTrain()
+    mainTest()
     
     
     
