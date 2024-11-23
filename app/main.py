@@ -1,20 +1,33 @@
 import pandas as pd
 from pytictoc import TicToc
+import argparse as ap
+import sys
 from randomForestRegressor import model
 from data import dataHelper
 
 DATA_CSV = "data.csv"
 DATA_TEST_CSV = "data_test.csv"
+TRAIN_BACKUP_CSV = "backup_data_train.csv"
+TEST_BACKUP_CSV = "backup_data_test.csv"
 tickerTrain = "MSFT"
 tickerTest = "BA"
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# mainTrain creates a new model, trains it, evaluates it, backtests it, and saves the model and scaler files
 
 def mainTrain(): 
     print("starting...\n")
     
-    #timer = TicToc()
-    
     dh = dataHelper(outputfile=DATA_CSV)
-    dh.prepareData(tickerTrain, "full", "csv")
+    
+    # in actual use this would use getDaily() to get the latest data
+    # but for testing there is a backup csv file with data that gets copied 
+    # due to the daily limit on the API
+    #dh.getDaily(tickerTest, "full", "csv")
+    dh.copyDataFromExisting(TRAIN_BACKUP_CSV, DATA_CSV)
+    
+    dh.prepareData(tickerTrain)
     
     df = dh.loadDataToDF()
     
@@ -25,8 +38,13 @@ def mainTrain():
     mdl = model(df)
     print("Model created.")
     
+    mdl.setUnstandardizedData(df)
+    print("Original open, high, low, and close values saved.")
+    
+    
+    mdl.standardiseData(True)
+    print("Data standardised.")
     mdl.prepareData()
-    print("Data prepared.")
     
     mdl.train()
     print("Model trained.")
@@ -34,22 +52,34 @@ def mainTrain():
     print(mdl.evaluate())
     
     print("Backtesting...")
-    #timer.tic()
     mdl.backtest(DATA_CSV)
-    #timer.toc()
     print("Backtesting done.")
+
+    dh.plotBacktestedData("Actual vs Predicted Closing Prices - Standardised", 'train_backtested_plot_std.png')
     
-    dh.plotBacktestedData('backtested_plot.png')
+    mdl.unstandardizeData(DATA_CSV)
+    print(f"Data unstandardised and saved to {DATA_CSV}.")
+    
+    dh.plotBacktestedData("Actual vs Predicted Closing Prices - Normalised",'train_backtested_plot_normal.png')   
     
     print("done.")
-    
+# ---------------------------------------------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------------------------------------------
+# mainTest loads an existing model and scaler, and tests it on new data    
+
 def mainTest():
     print("starting...\n")
-    
-    #timer = TicToc()
-    
+
     dh = dataHelper(outputfile=DATA_TEST_CSV)
-    #dh.prepareData(tickerTest, "full", "csv")
+    
+    # in actual use this would use getDaily() to get the latest data
+    # but for testing there is a backup csv file with data that gets copied 
+    # due to the daily limit on the API
+    #dh.getDaily(tickerTest, "full", "csv")
+    dh.copyDataFromExisting(TEST_BACKUP_CSV, DATA_TEST_CSV)
+    
+    dh.prepareData(tickerTest)
     
     df = dh.loadDataToDF()
     
@@ -57,70 +87,65 @@ def mainTest():
         print("Error: unable to load data from csv file.")
         exit()
     
-    #print(df.head())
-    #mdl = model(df)
+    mdl = model(df)
     print("Model created.")
     
-    #mdl.loadModel()
-    #mdl.loadScaler()
-    print("Model and scaler loaded.")
+    mdl.setUnstandardizedData(df)
+    print("Original open, high, low, and close values saved.")
+    
+    mdl.loadModel()
+    mdl.loadScaler()
+    
+    mdl.standardiseData(False)
+    print("Data standardised.")
     
     print("Backtesting...")
-    #timer.tic()
-    #mdl.backtestNewData(DATA_TEST_CSV)
-    #timer.toc()
+    mdl.backtest(DATA_TEST_CSV)
     print("Backtesting done.")
+
+    dh.plotBacktestedData("Actual vs Predicted Closing Prices - Standardised",'test_backtested_plot_std.png')
     
-    dh.plotBacktestedData('backtested_plot.png')
+    mdl.unstandardizeData(DATA_TEST_CSV)
+    print(f"Data unstandardised and saved to {DATA_TEST_CSV}.")
+    
+    dh.plotBacktestedData("Actual vs Predicted Closing Prices - Normalised", 'test_backtested_plot_normal.png')   
     
     print("done.")
     
+# ---------------------------------------------------------------------------------------------------------------
+    
     
 if __name__ == "__main__":
-    #mainTrain()
-    mainTest()
     
+    parser = ap.ArgumentParser(
+        prog="Stock price prediction",
+        description="Train or test an existing model to predict stock prices.",
+        add_help=False  # Disable default help to customize error handling.
+    )
     
+    parser.add_argument(
+        "mode",
+        choices=["train", "test"],
+        help="Choose 'train' to train a model or 'test' to test an existing model."
+    )
+    parser.add_argument(
+        "-h", "--help",
+        action="help",
+        help="Show this help message and exit."
+    )
     
-    """ # Create an instance of the model
-    reg_model = model(DATA_PATH)
-    
-    # Load and preprocess the data
-    df = reg_model.load_data()
-    reg_model.preprocess_data(df)
-    
-    # Train the model
-    reg_model.train()
-    
-    # Evaluate the model
-    mse = reg_model.evaluate()
-    print(f"Mean Squared Error: {mse}\n")
-    
-    # Backtest the model to predict closing prices for the past data
-    df = reg_model.backtest(df)
-    saveDataFrameToCSV(df[['Open', 'Close', 'test_close']], "backtested_data.csv")
-    
-    # Create a DataFrame with sample features including new ones (with placeholders for testing)
-    example_features = pd.DataFrame([[430, 435, 420, 431, 429, 0.002, 1.5]],
-                                    columns=['Open', 'High', 'Low', 'Moving_Avg_5', 'Moving_Avg_10', 'Daily_Return', 'Volatility'])
-    
-    predicted_closing_price = reg_model.predict(example_features)
-    print(f"Predicted Closing Price: {predicted_closing_price[0]}\n")
-    
-    
-    opening_price = example_features['Open'][0]
-    predicted_closing_price_value = predicted_closing_price.item()
-    price_change = abs(predicted_closing_price_value - opening_price)
-    
-    if predicted_closing_price_value < opening_price:
-        print(f"Price went down: Opening Price = {opening_price}, Predicted Closing Price = {predicted_closing_price_value}, Change = {price_change:.2f}")
-    elif predicted_closing_price_value > opening_price:
-        print(f"Price went up: Opening Price = {opening_price}, Predicted Closing Price = {predicted_closing_price_value}, Change = {price_change:.2f}")
-    else:
-        print(f"No price change: Opening Price = {opening_price}, Predicted Closing Price = {predicted_closing_price_value}")
+    # Parse arguments
+    if len(sys.argv) < 2:
+        parser.print_help()
+        sys.exit(1)
 
+    args = parser.parse_args()
     
-    plotBacktestedData('backtested_data.csv', 'backtested_plot.png') """
-
+    if args.mode == "train":
+        mainTrain()
+    elif args.mode == "test":
+        mainTest()
+    
+    
 
   

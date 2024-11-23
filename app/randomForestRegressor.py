@@ -13,12 +13,15 @@ class model():
         self.data_frame = data_frame
         self.model = RandomForestRegressor(n_estimators=100, random_state=42) 
         self.scaler = StandardScaler()
+        self.cols_std_unstd = ['open', 'high', 'low', 'close']
+        self.original_values = None # used to store the original values of open, high, low and close
         self.X_train = None
         self.X_test = None
         self.y_train = None
         self.y_test = None
         self.scalerName = 'scaler.pk1' # name of the scaler file to save
         self.modelName = 'model.pk1' # name of the model file to save
+        
         
     # ---------------------------------------------------------------------------------------------------------------
     # these functions are used for training
@@ -28,6 +31,10 @@ class model():
         self.data_frame['predictedClose'] = 0.0
         self.data_frame['predictedClose'] = self.data_frame['predictedClose'].astype(float)
         
+        """ 
+        Refactored this code into its own function to allow prepareData to be used in mainTest and mainTrain
+        I kept it here for reference:
+        
         # Select columns to standardize
         cols_to_standardize = ['open', 'high', 'low', 'close']
         self.scaler = StandardScaler()
@@ -36,7 +43,8 @@ class model():
         self.data_frame[cols_to_standardize] = self.scaler.fit_transform(self.data_frame[cols_to_standardize])
         
         # save the scaler
-        self.saveScaler()
+        self.saveScaler() 
+        """
         
         X = self.data_frame[
             ['open', 
@@ -60,10 +68,12 @@ class model():
         
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.8, random_state=42)
 
-    # Train the model
+
+    # Train and save the model
     def train(self):
         self.model.fit(self.X_train, self.y_train)
         self.saveModel()
+    
     
     # evaluate the model
     def evaluate(self):
@@ -82,14 +92,18 @@ class model():
             )
         return output
     
+    
+    # predict a closing price
     def predict(self, new_data):
         predicted_closing_price = self.model.predict(new_data)
         return predicted_closing_price
     
+    
+    # backtest the model on the data
     def backtest(self, filename):
         df = self.data_frame
         
-        # Define columns once to avoid repetition
+        # Define columns 
         columns = [
             'open', 'high', 'low', 'volume', 
             'SMA5', 'SMA20', 'SMA60', 
@@ -99,9 +113,9 @@ class model():
             'Momentum_60', 'MomentumDirection_60'
         ]
         
-        # Iterate through each row for backtesting
+        # Iterate through each row 
         for index, row in df.iterrows():
-            # Prepare data for prediction as a DataFrame
+            # Prepare data as a dataframe
             new_data = pd.DataFrame([[
                 row['open'], row['high'], row['low'], row['volume'], 
                 row['SMA5'], row['SMA20'], row['SMA60'], 
@@ -111,175 +125,112 @@ class model():
                 row['Momentum_60'], row['MomentumDirection_60']
             ]], columns=columns).fillna(0)
 
-            # Predict the closing price for the current row and check if prediction is in expected format
+            # Predict the closing price for the current row and update the dataframe
             predicted_close = self.predict(new_data)
             df.at[index, 'predictedClose'] = predicted_close[0] if predicted_close else None
 
-        # Save the DataFrame to CSV once after the loop
+        # Save the DataFrame to CSV 
         df.to_csv(filename)
         
+        
     # ---------------------------------------------------------------------------------------------------------------
-    # these functions are used for saving and loading the model
+    # these functions are used for saving and loading the model and saving the unstandardised data
     
+    
+    # save the scaler
     def saveScaler(self):
         os.makedirs('model_data', exist_ok=True)
         scaler_filename = os.path.join('model_data', self.scalerName)
         joblib.dump(self.scaler, scaler_filename)
-        print(f"Scaler saved to {scaler_filename}")
-        
+        print(f"Trained scaler saved to {scaler_filename}")
+    
+    
+    # load the scaler
     def loadScaler(self):
         scaler_filename = os.path.join('model_data', self.scalerName)
         self.scaler = joblib.load(scaler_filename)
         print(f"Scaler loaded from {scaler_filename}")
-        
+    
+    
+    # save the model
     def saveModel(self):
         os.makedirs('model_data', exist_ok=True)
         model_filename = os.path.join('model_data', self.modelName)
         joblib.dump(self.model, model_filename)
-        print(f"Model saved to {model_filename}")
-        
+        print(f"Trained model saved to {model_filename}")
+    
+    
+    # load the model
     def loadModel(self):
         model_filename = os.path.join('model_data', self.modelName)
         self.model = joblib.load(model_filename)
         print(f"Model loaded from {model_filename}")
+    
+    
+    # save the unstandardised data
+    def setUnstandardizedData(self, data):
+        cols_to_save = self.cols_std_unstd
+        self.original_values = data[cols_to_save].copy()
+
+
+    # get the unstandardised data 
+    # primarily used for testing
+    def getUnstandardizedData(self):
+        return self.original_values.head()
+        
         
     # ---------------------------------------------------------------------------------------------------------------
-    # these fucntions are used for loading and using the trained model
-    
-    def predictNewData(self, output_file=None):
-        # Load the saved model and scaler
-        self.loadScaler()
-        self.loadModel()
-        new_data_frame = self.data_frame
+    # These functions are used for loading, using the trained model, and unstabdarizing the data once backtesting is 
+    # done to make it more human readable
         
-        # Ensure all required columns are present in new_data_frame
-        required_columns = [
-            'open', 'high', 'low', 'volume', 
-            'SMA5', 'SMA20', 'SMA60', 
-            'SMADirection_5_20', 'SMADirection_20_60', 
-            'Momentum_5', 'MomentumDirection_5', 
-            'Momentum_20', 'MomentumDirection_20', 
-            'Momentum_60', 'MomentumDirection_60'
-        ]
         
-        if not all(col in new_data_frame.columns for col in required_columns):
-            raise ValueError("New data frame is missing required columns.")
-        
-        # Standardize the relevant columns
-        cols_to_standardize = ['open', 'high', 'low', 'close']
-        standardized_data = new_data_frame.copy()
-        standardized_data[cols_to_standardize] = self.scaler.transform(new_data_frame[cols_to_standardize])
-        
-        # Prepare data for prediction
-        prediction_data = standardized_data[required_columns].fillna(0)
-        
-        # Predict using the loaded model
-        predictions = self.model.predict(prediction_data)
-        
-        # Add predictions to the DataFrame
-        new_data_frame['predictedClose'] = predictions
-        
-        # Optionally save the DataFrame with predictions to a file
-        if output_file:
-            new_data_frame.to_csv(output_file, index=False)
-            print(f"Predictions saved to {output_file}")
-        
-        return new_data_frame
-    
-    def backtestNewData(self, output_file=None):
-        
-        df = self.data_frame.copy()
-        
-        # Ensure all required columns are present in new_data_frame
-        required_columns = [
-            'open', 'high', 'low', 'volume', 
-            'SMA5', 'SMA20', 'SMA60', 
-            'SMADirection_5_20', 'SMADirection_20_60', 
-            'Momentum_5', 'MomentumDirection_5', 
-            'Momentum_20', 'MomentumDirection_20', 
-            'Momentum_60', 'MomentumDirection_60'
-        ]
-        
-        if not all(col in df.columns for col in required_columns):
-            raise ValueError("New data frame is missing required columns.")
-        
-        # Standardize the relevant columns
-        cols_to_standardize = ['open', 'high', 'low', 'close']
-        #original_values = df[cols_to_standardize].copy()
-        standardized_data = self.scaler.transform(df[cols_to_standardize])
-        df[cols_to_standardize] = standardized_data
-        
-        # Backtest by iterating through each row
-        for index, row in df.iterrows():
-            # Prepare row for prediction
-            new_data = pd.DataFrame([[
-                row['open'], row['high'], row['low'], row['volume'], 
-                row['SMA5'], row['SMA20'], row['SMA60'], 
-                row['SMADirection_5_20'], row['SMADirection_20_60'], 
-                row['Momentum_5'], row['MomentumDirection_5'], 
-                row['Momentum_20'], row['MomentumDirection_20'], 
-                row['Momentum_60'], row['MomentumDirection_60']
-            ]], columns=required_columns).fillna(0)
-            
-            # Predict standardized closing price
-            predicted_close = self.model.predict(new_data)
-            
-            df.at[index, 'predictedClose'] = predicted_close[0] if predicted_close else None
-            
-        df.to_csv(output_file)
+    # unstandardize the data
+    def unstandardizeData(self, filename):
+        # Ensure original values are available
+        if self.original_values is None:
+            raise ValueError("Original values are not available to revert standardization.")
 
-    def backtestNewData1(self, output_file=None):
-        
-        df = self.data_frame.copy()
-        
-        # Ensure all required columns are present in new_data_frame
-        required_columns = [
-        'timestamp', 'open', 'high', 'low', 'volume', 
-        'SMA5', 'SMA20', 'SMA60', 
-        'SMADirection_5_20', 'SMADirection_20_60', 
-        'Momentum_5', 'MomentumDirection_5', 
-        'Momentum_20', 'MomentumDirection_20', 
-        'Momentum_60', 'MomentumDirection_60'
-    ]
-        
-        if not all(col in df.columns for col in required_columns):
-            raise ValueError("New data frame is missing required columns.")
-        
-        # Standardize the relevant columns
-        cols_to_standardize = ['open', 'high', 'low', 'close']
-        original_values = df[cols_to_standardize].copy()
-        standardized_data = self.scaler.transform(df[cols_to_standardize])
-        df[cols_to_standardize] = standardized_data
-        
-        # Backtest by iterating through each row
-        for index, row in df.iterrows():
-            # Prepare row for prediction
-            new_data = pd.DataFrame([[
-                row['open'], row['high'], row['low'], row['volume'], 
-                row['SMA5'], row['SMA20'], row['SMA60'], 
-                row['SMADirection_5_20'], row['SMADirection_20_60'], 
-                row['Momentum_5'], row['MomentumDirection_5'], 
-                row['Momentum_20'], row['MomentumDirection_20'], 
-                row['Momentum_60'], row['MomentumDirection_60']
-            ]], columns=required_columns).fillna(0)
-            
-            # Predict standardized closing price
-            predicted_close = self.model.predict(new_data)
-
+        # Iterate through each row to unstandardize the predictedClose
+        for index, row in self.data_frame.iterrows():
+            # Extract the standardized row values from the original data
             standardized_row = [
                 row['open'], row['high'], row['low'], row['close']
             ]
+
+            # Use the scaler to unstandardize the predictedClose based on the standardized_row
+            predicted_close_standardized = self.data_frame.at[index, 'predictedClose']
             
-            # Unstandardize the predicted close value (use inverse transform)
             predicted_close_unstandardized = self.scaler.inverse_transform([standardized_row])[0][0]
+
+            # Update the predictedClose column with the unstandardized value
+            self.data_frame.at[index, 'predictedClose'] = predicted_close_unstandardized
             
-            # Revert the standardized columns (open, high, low, close) back to their original values
-            df.at[index, 'open'] = original_values.at[index, 'open']
-            df.at[index, 'high'] = original_values.at[index, 'high']
-            df.at[index, 'low'] = original_values.at[index, 'low']
-            df.at[index, 'close'] = original_values.at[index, 'close']
+            # Columns to unstandardize ['open', 'high', 'low', 'close']
+            self.data_frame[self.cols_std_unstd] = self.original_values[self.cols_std_unstd].copy()
             
-            df.at[index, 'predictedClose'] = predicted_close_unstandardized if predicted_close_unstandardized else None
-            
-        df.to_csv(output_file, index=False)  
+        self.data_frame.to_csv(filename)
+    
+    
+    # standardise the data
+    def standardiseData(self, train):
+        
+        # train is a flag to indicate whether this is a training run or a testing run 
+        # if it is a training run, we iniitialize a new scaler and save it 
+        if train:
+            self.scaler = StandardScaler()
+            print("Scaler created.")
+        
+        # Select columns to standardize ['open', 'high', 'low', 'close']
+        cols_to_standardize = self.cols_std_unstd
+        
+        self.original_values[self.cols_std_unstd] = self.data_frame[self.cols_std_unstd].copy()
+        
+        # Apply scaler to specified columns
+        self.data_frame[cols_to_standardize] = self.scaler.fit_transform(self.data_frame[cols_to_standardize])
+        
+        # save the scaler
+        if train:
+            self.saveScaler()
+        
+        
 # ---------------------------------------------------------------------------------------------------------------

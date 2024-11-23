@@ -4,6 +4,7 @@ import pandas as pd
 from io import StringIO
 import os
 import matplotlib.pyplot as plt
+import shutil
 
 class dataHelper():
         
@@ -11,6 +12,8 @@ class dataHelper():
         self.api_key = api_key if api_key else self.getKey()
         self.FILENAME = outputfile
         
+        
+    # Reads the api key from the config file    
     def getKey(self):
         # Load API key from config.json in the parent directory
         config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
@@ -25,6 +28,8 @@ class dataHelper():
             print("Error decoding JSON in config.json.")
             return None
         
+        
+    # Fetches the daily data for a stock symbol    
     def getDaily(self, symbol, period="full", type="csv"):
         url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={self.api_key}&outputsize={period}&datatype={type}"
         response = requests.get(url)
@@ -40,7 +45,25 @@ class dataHelper():
         else:
             print(f"Failed to retrieve data for {symbol}. Status code: {response.status_code}")
             return None
+        
     
+    # Copies data from the backup file to the working file
+    def copyDataFromExisting(self, sourceFile, targetFile):
+        '''
+        This function is used to copy data from an existing CSV file to the current CSV file.
+        
+        It is used mainly for testing due to the limitations of the AlphaVantage API queries.
+        '''
+        try:
+            shutil.copyfile(sourceFile, targetFile)
+            print(f"Contents of {sourceFile} successfully copied to {targetFile}.")
+        except FileNotFoundError:
+            print(f"Error: {sourceFile} not found.")
+        except IOError as e:
+            print(f"Error while copying file: {e}")
+        
+    
+    # Calculates the Simple Moving Average for a given period
     def calculateSMA(self, period, feature):
         full_data = pd.read_csv(self.FILENAME, index_col='timestamp', parse_dates=True)
         data = full_data[feature].to_frame()
@@ -55,6 +78,7 @@ class dataHelper():
         return full_data
     
     
+    # Calculates the direction of the Simple Moving Average given two periods
     def calculateSMADirection(self, SMA1, SMA2):
         # 1 = up, 0 = no change, -1 = down
         full_data = pd.read_csv(self.FILENAME, index_col='timestamp', parse_dates=True)
@@ -77,6 +101,8 @@ class dataHelper():
         
         return full_data
         
+    
+    # Calculates the momentum for a given period 
     def calculateMomentum(self, period):
         # 1 = up, 0 = no change, -1 = down
         full_data = pd.read_csv(self.FILENAME, index_col='timestamp', parse_dates=True)
@@ -92,6 +118,8 @@ class dataHelper():
         full_data.to_csv(self.FILENAME)
         return full_data
     
+    
+    # Calculates the direction of the momentum for a given period
     def calculateMomentumDirection(self, period):
         # if Momentum_{period} > 0, then 1, if < 0, then -1, else 0
         full_data = pd.read_csv(self.FILENAME, index_col='timestamp', parse_dates=True)
@@ -103,17 +131,24 @@ class dataHelper():
         full_data.to_csv(self.FILENAME)
         return full_data
     
-    def prepareData(self, symbol, period="full", type="csv"):
+    
+    # Prepares the data for the model by adding features
+    def prepareData(self, symbol):
         print("-----------------------------------------------------------------------------")
         print(f"Preparing data for {symbol}:\n")
         
         # get the data from the alphavantage API
+        """ 
+        Refactored this out of this function to allow for testing with a backup CSV file
+        Left it here for reference:
+        
         try:
             self.getDaily(symbol, period, type)
             print(f"Data for {symbol} has been fetched from AlphaVantage API and written to {self.FILENAME}")
         except Exception as e:
             print(f"Error: {e}")
-            pass
+            pass 
+        """
         
         # add features to the data
         # calculate the SMA for 5 days
@@ -207,6 +242,8 @@ class dataHelper():
         print(f"Data preparation for {symbol} is complete, and the data has been written to {self.FILENAME}")
         print("-----------------------------------------------------------------------------\n")
         
+    
+    # Loads the data from the csv file into a dataframe
     def loadDataToDF(self):
         try:
             data = pd.read_csv(self.FILENAME, index_col='timestamp', parse_dates=True)
@@ -222,7 +259,9 @@ class dataHelper():
             print(f"Error: There was a parsing issue with the CSV file {self.FILENAME}.\n")
             return None
         
-    def plotBacktestedData(self, image_file='backtested_plot.png'):
+    
+    # Plots the backtested data
+    def plotBacktestedData(self, title, image_file='backtested_plot.png'):
         df = pd.read_csv(self.FILENAME, parse_dates=[0], index_col=0)
 
         # Plot the Close and test_close columns
@@ -231,7 +270,7 @@ class dataHelper():
         plt.plot(df.index, df['predictedClose'], label='Predicted Close', color='orange')
 
         # Adding titles and labels
-        plt.title('Actual vs Predicted Closing Prices')
+        plt.title(title)
         plt.xlabel('Date')
         plt.ylabel('Price')
         plt.legend()
