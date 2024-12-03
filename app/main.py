@@ -4,6 +4,7 @@ import argparse as ap
 import sys
 from randomForestRegressor import model
 from data import dataHelper
+from ui import StockPredictionCommandLine
 
 DATA_CSV = "data.csv"
 DATA_TEST_CSV = "data_test.csv"
@@ -116,8 +117,9 @@ def mainTest():
     
     
 if __name__ == "__main__":
-    
-    parser = ap.ArgumentParser(
+    cl = StockPredictionCommandLine(tickerTrain, DATA_CSV)
+    cl.start()
+    """ parser = ap.ArgumentParser(
         prog="Stock price prediction",
         description="Train or test an existing model to predict stock prices.",
         add_help=False  # Disable default help to customize error handling.
@@ -144,7 +146,7 @@ if __name__ == "__main__":
     if args.mode == "train":
         mainTrain()
     elif args.mode == "test":
-        mainTest()
+        mainTest() """
     
     
 

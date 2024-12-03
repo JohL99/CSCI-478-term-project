@@ -6,7 +6,10 @@ import joblib
 import os
 import json
 import pandas as pd
+import numpy as np
 
+from data import dataHelper 
+FILE = "data.csv"
 class model():
     
     def __init__(self, data_frame):
@@ -132,6 +135,56 @@ class model():
         # Save the DataFrame to CSV 
         df.to_csv(filename)
         
+    def predictNextDay(self, df):
+        
+        dh = dataHelper(FILE)
+        
+        #df = self.data_frame
+        
+        # Define columns 
+        columns = [
+            'open', 'high', 'low', 'volume', 
+            'SMA5', 'SMA20', 'SMA60', 
+            'SMADirection_5_20', 'SMADirection_20_60', 
+            'Momentum_5', 'MomentumDirection_5', 
+            'Momentum_20', 'MomentumDirection_20', 
+            'Momentum_60', 'MomentumDirection_60'
+        ]
+            
+        #row = df.iloc[-1]
+        
+        #SMA5 = dh.calculateSMADF(5, 'close', df)
+        #SMA20 = dh.calculateSMADF(20, 'close', df)
+        #SMA60 = dh.calculateSMADF(60, 'close', df)
+        #SMA5_20 = dh.calculateSMADirectionDF(5, 20, df)
+        #SMA20_60 = dh.calculateSMADirectionDF(20, 60, df)
+        #Momentum5 = dh.calculateMomentumDF(5, df)
+        #MomentumDir5 = dh.calculateMomentumDirectionDF(5, df)
+        #Momentum20 = dh.calculateMomentumDF(20, df)
+        #MomentumDir20 = dh.calculateMomentumDirectionDF(20, df)
+        #Momentum60 = dh.calculateMomentumDF(60, df)
+        #MomentumDir60 = dh.calculateMomentumDirectionDF(60, df)
+        
+        # Prepare data as a dataframe
+        new_data = pd.DataFrame([[
+            df.iloc[-1]['open'], df.iloc[-1]['high'], df.iloc[-1]['low'], df.iloc[-1]['volume'], 
+            df.iloc[-1]['SMA5'], df.iloc[-1]['SMA20'], df.iloc[-1]['SMA60'],
+            df.iloc[-1]['SMADirection_5_20'], df.iloc[-1]['SMADirection_20_60'],
+            df.iloc[-1]['Momentum_5'], df.iloc[-1]['MomentumDirection_5'],
+            df.iloc[-1]['Momentum_20'], df.iloc[-1]['MomentumDirection_20'],
+            df.iloc[-1]['Momentum_60'], df.iloc[-1]['MomentumDirection_60']
+            
+        ]], columns=columns).fillna(0)
+
+        # Predict the closing price for the current row and update the dataframe
+        predicted_close = self.predict(new_data)
+        print(predicted_close)
+        
+        df.at[df.index[-1], 'predictedClose'] = predicted_close[0] if predicted_close else None
+        
+        return df
+
+        
         
     # ---------------------------------------------------------------------------------------------------------------
     # these functions are used for saving and loading the model and saving the unstandardised data
@@ -177,6 +230,12 @@ class model():
     # primarily used for testing
     def getUnstandardizedData(self):
         return self.original_values.head()
+    
+    def getStandardizedData(self):
+        needed_columns = ['open', 'high', 'low', 'close']  # Modify this list as needed
+    
+        # Return only the first row with the specified columns
+        return self.data_frame[needed_columns].iloc[0:1]
         
         
     # ---------------------------------------------------------------------------------------------------------------
@@ -209,7 +268,54 @@ class model():
             self.data_frame[self.cols_std_unstd] = self.original_values[self.cols_std_unstd].copy()
             
         self.data_frame.to_csv(filename)
+        
+    def unstandardizeRow(self, df, predicted_close):
+        # Ensure original values are available
+        if self.original_values is None:
+            raise ValueError("Original values are not available to revert standardization.")
+
+        # Get a copy of the first row with standardized values
+        standardized_row = df.iloc[0].copy()
+
+        # Append the predicted close value to the standardized row
+        standardized_row['predictedClose'] = predicted_close
+
+        # Extract the standardized values for the features (open, high, low, close)
+        feature_columns = ['open', 'high', 'low', 'close']
+        standardized_values = standardized_row[feature_columns].values.tolist()
+
+        # Use the scaler to unstandardize the row (features + predicted close)
+        unstandardized_values = self.scaler.inverse_transform([standardized_values])[0]
+
+        # Unstandardize the predictedClose value separately
+        predicted_close_unstandardized = unstandardized_values[0]
+
+        # Replace the 'predictedClose' column with the unstandardized value
+        standardized_row['predictedClose'] = predicted_close_unstandardized
+
+        # Optionally, unstandardize the other columns if needed
+        standardized_row[feature_columns] = self.original_values[feature_columns].copy()
+
+        return standardized_row
     
+    def unstandardizeVal(self, predicted_close):
+        # Ensure predicted_close is a 2D array (one row, one feature)
+        predicted_close_2d = np.array([[predicted_close]])  # Shape: (1, 1)
+
+        # Create a row with 4 columns, where the first 3 columns are placeholders (e.g., zeros)
+        # The 4th column will contain the predicted close value
+        unstandardized_row = np.zeros((1, 4))  # 1 row, 4 columns (open, high, low, close)
+        unstandardized_row[0, 3] = predicted_close_2d[0, 0]  # Place predicted close in the 4th column (close)
+
+        # Use the scaler to unstandardize the entire row
+        unstandardized_value = self.scaler.inverse_transform(unstandardized_row)
+
+        # Return the unstandardized value of the predicted close (the 4th column)
+        return unstandardized_value[0, 3]  # Extract the unstandardized predicted close
+
+
+
+        
     
     # standardise the data
     def standardiseData(self, train):
