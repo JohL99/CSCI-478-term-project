@@ -6,3 +6,5 @@ __pycache__
 *.png
 config.json
 *.pk1
+
+back.py

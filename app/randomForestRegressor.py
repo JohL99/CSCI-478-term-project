@@ -135,56 +135,6 @@ class model():
         # Save the DataFrame to CSV 
         df.to_csv(filename)
         
-    def predictNextDay(self, df):
-        
-        dh = dataHelper(FILE)
-        
-        #df = self.data_frame
-        
-        # Define columns 
-        columns = [
-            'open', 'high', 'low', 'volume', 
-            'SMA5', 'SMA20', 'SMA60', 
-            'SMADirection_5_20', 'SMADirection_20_60', 
-            'Momentum_5', 'MomentumDirection_5', 
-            'Momentum_20', 'MomentumDirection_20', 
-            'Momentum_60', 'MomentumDirection_60'
-        ]
-            
-        #row = df.iloc[-1]
-        
-        #SMA5 = dh.calculateSMADF(5, 'close', df)
-        #SMA20 = dh.calculateSMADF(20, 'close', df)
-        #SMA60 = dh.calculateSMADF(60, 'close', df)
-        #SMA5_20 = dh.calculateSMADirectionDF(5, 20, df)
-        #SMA20_60 = dh.calculateSMADirectionDF(20, 60, df)
-        #Momentum5 = dh.calculateMomentumDF(5, df)
-        #MomentumDir5 = dh.calculateMomentumDirectionDF(5, df)
-        #Momentum20 = dh.calculateMomentumDF(20, df)
-        #MomentumDir20 = dh.calculateMomentumDirectionDF(20, df)
-        #Momentum60 = dh.calculateMomentumDF(60, df)
-        #MomentumDir60 = dh.calculateMomentumDirectionDF(60, df)
-        
-        # Prepare data as a dataframe
-        new_data = pd.DataFrame([[
-            df.iloc[-1]['open'], df.iloc[-1]['high'], df.iloc[-1]['low'], df.iloc[-1]['volume'], 
-            df.iloc[-1]['SMA5'], df.iloc[-1]['SMA20'], df.iloc[-1]['SMA60'],
-            df.iloc[-1]['SMADirection_5_20'], df.iloc[-1]['SMADirection_20_60'],
-            df.iloc[-1]['Momentum_5'], df.iloc[-1]['MomentumDirection_5'],
-            df.iloc[-1]['Momentum_20'], df.iloc[-1]['MomentumDirection_20'],
-            df.iloc[-1]['Momentum_60'], df.iloc[-1]['MomentumDirection_60']
-            
-        ]], columns=columns).fillna(0)
-
-        # Predict the closing price for the current row and update the dataframe
-        predicted_close = self.predict(new_data)
-        print(predicted_close)
-        
-        df.at[df.index[-1], 'predictedClose'] = predicted_close[0] if predicted_close else None
-        
-        return df
-
-        
         
     # ---------------------------------------------------------------------------------------------------------------
     # these functions are used for saving and loading the model and saving the unstandardised data
