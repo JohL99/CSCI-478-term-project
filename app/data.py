@@ -8,6 +8,7 @@ import shutil
 
 class dataHelper():
         
+        
     def __init__(self, outputfile, api_key=None):
         self.api_key = api_key if api_key else self.getKey()
         self.FILENAME = outputfile
@@ -77,23 +78,6 @@ class dataHelper():
         
         return full_data
     
-    def calculateSMADF(self, period, feature, df):
-        # Ensure that the feature column exists in the dataframe
-        if feature not in df.columns:
-            raise ValueError(f"DataFrame must contain the feature column '{feature}'")
-
-        # Calculate SMA for the given period on the feature
-        df[f'SMA{period}'] = df[feature].rolling(period).mean()
-
-        # Replace NaN values for the first 'period' rows with 0
-        df.loc[:df.index[period-1], f'SMA{period}'] = 0
-
-        # Get the SMA value for the last row (latest day)
-        latest_sma_value = df.iloc[-1][f'SMA{period}']
-
-        # Return the latest SMA value
-        return latest_sma_value
-    
     
     # Calculates the direction of the Simple Moving Average given two periods
     def calculateSMADirection(self, SMA1, SMA2):
@@ -117,29 +101,6 @@ class dataHelper():
         full_data.to_csv(self.FILENAME)
         
         return full_data
-    
-    def calculateSMADirectionDF(self, SMA1, SMA2, df):
-        # Ensure that df contains the necessary SMA columns
-        sma_column_1 = f'SMA{SMA1}'
-        sma_column_2 = f'SMA{SMA2}'
-        
-        # Calculate SMA Direction only for the last row
-        if sma_column_1 not in df.columns or sma_column_2 not in df.columns:
-            raise ValueError(f"DataFrame must contain columns {sma_column_1} and {sma_column_2}")
-
-        # Get the latest row (iloc[-1]) for comparison
-        latest_row = df.iloc[-1]
-
-        # Calculate the direction based on SMA1 and SMA2 values
-        if latest_row[sma_column_1] > latest_row[sma_column_2]:
-            direction = 1  # SMA1 > SMA2, Up
-        elif latest_row[sma_column_1] < latest_row[sma_column_2]:
-            direction = -1  # SMA1 < SMA2, Down
-        else:
-            direction = 0  # SMA1 == SMA2, No change
-
-        # Return the direction for the latest day
-        return direction
         
     
     # Calculates the momentum for a given period 
@@ -159,29 +120,6 @@ class dataHelper():
         return full_data
     
     
-    def calculateMomentumDF(self, period, df):
-        # Ensure the 'close' column exists in the DataFrame
-        if 'close' not in df.columns:
-            raise ValueError("DataFrame must contain the 'close' column")
-
-        # Initialize the momentum column
-        df[f'Momentum_{period}'] = 0.0
-        df[f'Momentum_{period}'] = df[f'Momentum_{period}'].astype('float64')
-        
-        # Calculate momentum for the given period
-        for i in range(period-1, len(df)):
-            close_today = df.iloc[i]['close']
-            close_period_ago = df.iloc[i - (period-1)]['close']
-            momentum = (close_today - close_period_ago) / close_today
-            df.at[df.index[i], f'Momentum_{period}'] = float(momentum)
-
-        # Get the momentum value for the last row (latest day)
-        latest_momentum_value = df.iloc[-1][f'Momentum_{period}']
-        
-        # Return the latest momentum value
-        return latest_momentum_value
-    
-    
     # Calculates the direction of the momentum for a given period
     def calculateMomentumDirection(self, period):
         # if Momentum_{period} > 0, then 1, if < 0, then -1, else 0
@@ -194,45 +132,14 @@ class dataHelper():
         full_data.to_csv(self.FILENAME)
         return full_data
     
-    def calculateMomentumDirectionDF(self, period, df):
-        # Ensure the 'Momentum_{period}' column exists in the DataFrame
-        momentum_column = f'Momentum_{period}'
-        if momentum_column not in df.columns:
-            raise ValueError(f"DataFrame must contain the '{momentum_column}' column")
-        
-        # Initialize the 'MomentumDirection_{period}' column
-        df[f'MomentumDirection_{period}'] = 0
-
-        # Apply logic for momentum direction
-        df.loc[df[f'Momentum_{period}'] > 0, f'MomentumDirection_{period}'] = 1
-        df.loc[df[f'Momentum_{period}'] < 0, f'MomentumDirection_{period}'] = -1
-
-        # Get the momentum direction value for the last row (latest day)
-        latest_momentum_direction = df.iloc[-1][f'MomentumDirection_{period}']
-        
-        # Return the latest momentum direction value
-        return latest_momentum_direction
-    
     
     # Prepares the data for the model by adding features
     def prepareData(self, symbol):
-        print("-----------------------------------------------------------------------------")
+        print("-----------------------------------------------------------------------------\n")
         print(f"Preparing data for {symbol}:\n")
         
-        # get the data from the alphavantage API
-        """ 
-        Refactored this out of this function to allow for testing with a backup CSV file
-        Left it here for reference:
-        
-        try:
-            self.getDaily(symbol, period, type)
-            print(f"Data for {symbol} has been fetched from AlphaVantage API and written to {self.FILENAME}")
-        except Exception as e:
-            print(f"Error: {e}")
-            pass 
-        """
-        
         # add features to the data
+        
         # calculate the SMA for 5 days
         try:
             self.calculateSMA(5, 'close')
@@ -322,7 +229,7 @@ class dataHelper():
             pass
         
         print(f"Data preparation for {symbol} is complete, and the data has been written to {self.FILENAME}")
-        print("-----------------------------------------------------------------------------\n")
+        print("\n-----------------------------------------------------------------------------\n")
         
     
     # Loads the data from the csv file into a dataframe
@@ -342,7 +249,7 @@ class dataHelper():
             return None
         
     
-    # Plots the backtested data
+    # Plots the data
     def plotBacktestedData(self, title, image_file='backtested_plot.png'):
         df = pd.read_csv(self.FILENAME, parse_dates=[0], index_col=0)
 
@@ -362,6 +269,7 @@ class dataHelper():
         plt.savefig(image_file)
         print(f"Plot saved as {image_file}")
         plt.show()
+    
     
     def plotPredData(self, title, df, image_file='pred_plot.png'):
 

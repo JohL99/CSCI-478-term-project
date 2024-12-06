@@ -7,10 +7,12 @@ import os
 import json
 import pandas as pd
 import numpy as np
-
 from data import dataHelper 
+
 FILE = "data.csv"
+
 class model():
+    
     
     def __init__(self, data_frame):
         self.data_frame = data_frame
@@ -27,27 +29,13 @@ class model():
         
         
     # ---------------------------------------------------------------------------------------------------------------
-    # these functions are used for training
+    # These functions are used for training
     
     # used to populate the data_frame from data.csv
     def prepareData(self):
         self.data_frame['predictedClose'] = 0.0
         self.data_frame['predictedClose'] = self.data_frame['predictedClose'].astype(float)
         
-        """ 
-        Refactored this code into its own function to allow prepareData to be used in mainTest and mainTrain
-        I kept it here for reference:
-        
-        # Select columns to standardize
-        cols_to_standardize = ['open', 'high', 'low', 'close']
-        self.scaler = StandardScaler()
-        
-        # Apply scaler to specified columns
-        self.data_frame[cols_to_standardize] = self.scaler.fit_transform(self.data_frame[cols_to_standardize])
-        
-        # save the scaler
-        self.saveScaler() 
-        """
         
         X = self.data_frame[
             ['open', 
@@ -86,12 +74,13 @@ class model():
         r2 = r2_score(self.y_test, y_pred)
         mae = mean_absolute_error(self.y_test, y_pred)
         output = (
-            "--------------------------------------------------------\n"
+            "\n--------------------------------------------------------\n"
+            "Model Evaluation:\n\n"
             f"Mean Squared Error: {mse}\n"
             f"Root Mean Squared Error: {rmse}\n"
             f"R2 Score: {r2}\n"
             f"Mean Absolute Error: {mae}\n"
-            "--------------------------------------------------------"
+            "--------------------------------------------------------\n"
             )
         return output
     
@@ -137,7 +126,7 @@ class model():
         
         
     # ---------------------------------------------------------------------------------------------------------------
-    # these functions are used for saving and loading the model and saving the unstandardised data
+    # These functions are used for saving and loading the model and saving the unstandardised data
     
     
     # save the scaler
@@ -189,12 +178,12 @@ class model():
         
         
     # ---------------------------------------------------------------------------------------------------------------
-    # These functions are used for loading, using the trained model, and unstabdarizing the data once backtesting is 
+    # These functions are used for loading, using the trained model, and unstandardizing the data once backtesting is 
     # done to make it more human readable
         
         
     # unstandardize the data
-    def unstandardizeData(self, filename):
+    def unstandardiseData(self, filename):
         # Ensure original values are available
         if self.original_values is None:
             raise ValueError("Original values are not available to revert standardization.")
@@ -218,43 +207,15 @@ class model():
             self.data_frame[self.cols_std_unstd] = self.original_values[self.cols_std_unstd].copy()
             
         self.data_frame.to_csv(filename)
-        
-    def unstandardizeRow(self, df, predicted_close):
-        # Ensure original values are available
-        if self.original_values is None:
-            raise ValueError("Original values are not available to revert standardization.")
 
-        # Get a copy of the first row with standardized values
-        standardized_row = df.iloc[0].copy()
 
-        # Append the predicted close value to the standardized row
-        standardized_row['predictedClose'] = predicted_close
-
-        # Extract the standardized values for the features (open, high, low, close)
-        feature_columns = ['open', 'high', 'low', 'close']
-        standardized_values = standardized_row[feature_columns].values.tolist()
-
-        # Use the scaler to unstandardize the row (features + predicted close)
-        unstandardized_values = self.scaler.inverse_transform([standardized_values])[0]
-
-        # Unstandardize the predictedClose value separately
-        predicted_close_unstandardized = unstandardized_values[0]
-
-        # Replace the 'predictedClose' column with the unstandardized value
-        standardized_row['predictedClose'] = predicted_close_unstandardized
-
-        # Optionally, unstandardize the other columns if needed
-        standardized_row[feature_columns] = self.original_values[feature_columns].copy()
-
-        return standardized_row
-    
-    def unstandardizeVal(self, predicted_close):
+    def unstandardiseVal(self, predicted_close):
         # Ensure predicted_close is a 2D array (one row, one feature)
         predicted_close_2d = np.array([[predicted_close]])  # Shape: (1, 1)
 
         # Create a row with 4 columns, where the first 3 columns are placeholders (e.g., zeros)
         # The 4th column will contain the predicted close value
-        unstandardized_row = np.zeros((1, 4))  # 1 row, 4 columns (open, high, low, close)
+        unstandardized_row = np.zeros((1, 4))  
         unstandardized_row[0, 3] = predicted_close_2d[0, 0]  # Place predicted close in the 4th column (close)
 
         # Use the scaler to unstandardize the entire row
@@ -264,9 +225,6 @@ class model():
         return unstandardized_value[0, 3]  # Extract the unstandardized predicted close
 
 
-
-        
-    
     # standardise the data
     def standardiseData(self, train):
         
@@ -290,3 +248,5 @@ class model():
         
         
 # ---------------------------------------------------------------------------------------------------------------
+
+    
