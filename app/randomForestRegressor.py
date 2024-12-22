@@ -14,8 +14,11 @@ FILE = "data.csv"
 class model():
     
     
-    def __init__(self, data_frame):
-        self.data_frame = data_frame
+    def __init__(self, data_frame=None):
+        
+        # for now 
+        self.data_frame = data_frame if data_frame is not None else None
+        
         self.model = RandomForestRegressor(n_estimators=100, random_state=42) 
         self.scaler = StandardScaler()
         self.cols_std_unstd = ['open', 'high', 'low', 'close']
@@ -28,11 +31,26 @@ class model():
         self.modelName = 'model.pk1' # name of the model file to save
         
         
+    def loadModelDataFrame(self, data_frame):
+        self.data_frame = data_frame
+        
+    def checkModelData(self):
+        if self.data_frame is None:
+            return False
+        
+        return True
+        
+        
+        
     # ---------------------------------------------------------------------------------------------------------------
     # These functions are used for training
     
     # used to populate the data_frame from data.csv
     def prepareData(self):
+        
+        if self.data_frame is None:
+                print("Data frame is None")
+            
         self.data_frame['predictedClose'] = 0.0
         self.data_frame['predictedClose'] = self.data_frame['predictedClose'].astype(float)
         

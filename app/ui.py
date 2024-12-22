@@ -6,14 +6,15 @@ import datetime as dt
 from randomForestRegressor import model
 from data import dataHelper
 
-class StockPredictionCommandLine:
+class StockPredictionCommandLine():
     
     
     def __init__(self, DATA_CSV, type):
-        #matplotlib.use('Agg')
+        #matplotlib.use('Agg') # for macs
         self.dh = dataHelper(outputfile="data.csv")
-        self.mdl = None
+        self.mdl = model()
         self.type = type
+        
         self.trainTicker = "MSFT"
         self.testTicker = "BA"
         self.predictTicker = "AAPL"
@@ -22,11 +23,19 @@ class StockPredictionCommandLine:
         self.PREDICT_BACKUP_CSV = "backup_data_predict.csv"
         self.DATA_CSV = DATA_CSV
 
-
+    def loadModel(self):
+        self.mdl = model()
+        
+    def loadDataHelper(self):
+        self.dh = dataHelper(outputfile="data.csv")
 # -----------------------------------------------------------------------------------------------------------------------------------
 # Drivers for the cli
 
     def start(self):
+        
+        self.loadModel() 
+        self.loadDataHelper() 
+        
         while True:
             self.display_welcome_message()
             choice = self.get_user_choice()
@@ -147,36 +156,38 @@ class StockPredictionCommandLine:
             return
         
         # Create model and do necessary steps to prepare data and train model
-        mdl = model(df)
+        #mdl = model(df)
         print("Model created.")
-        
-        mdl.setUnstandardizedData(df)
+        if not self.mdl.checkModelData():
+            self.mdl.loadModelDataFrame(df)
+            
+        self.mdl.setUnstandardizedData(df)
         print("Original open, high, low, and close values saved.")
         
-        mdl.standardiseData(True)
+        self.mdl.standardiseData(True)
         print("Data standardised.")
-        mdl.prepareData()
+        self.mdl.prepareData()
         
         try:
-            mdl.train()
+            self.mdl.train()
             print("Model trained.")
-            print(mdl.evaluate())
+            print(self.mdl.evaluate())
         except Exception as e:
             print(f"Error during model training: {e}")
             return
         try:
             # backtest the model
             print("Backtesting...")
-            mdl.backtest(self.DATA_CSV)
+            self.mdl.backtest(self.DATA_CSV)
             print("Backtesting done.")
             
-            self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Standardised", 'train_backtested_plot_std.png')
+            #self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Standardised", 'train_backtested_plot_std.png')
             
-            mdl.unstandardiseData(self.DATA_CSV)
+            self.mdl.unstandardiseData(self.DATA_CSV)
             print(f"Data unstandardised and saved to {self.DATA_CSV}.")
             
-            self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Normalised",'train_backtested_plot_normal.png') 
-            self.mdl = mdl # save the model locally for future use to avoid the need to load it from the file
+            #self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Normalised",'train_backtested_plot_normal.png') 
+            #self.mdl = mdl # save the model locally for future use to avoid the need to load it from the file
         except Exception as e:
             print(f"Error during backtesting: {e}")
             return
@@ -232,12 +243,12 @@ class StockPredictionCommandLine:
             self.mdl.backtest(self.DATA_CSV)
             print("Backtesting done.")
             
-            self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Standardised", 'test_backtested_plot_std.png')
+            #self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Standardised", 'test_backtested_plot_std.png')
             
             self.mdl.unstandardiseData(self.DATA_CSV)
             print(f"Data unstandardised and saved to {self.DATA_CSV}.")
             
-            self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Normalised",'test_backtested_plot_normal.png') 
+            #self.dh.plotBacktestedData("Actual vs Predicted Closing Prices - Normalised",'test_backtested_plot_normal.png') 
         except Exception as e:
             print(f"Error during backtesting: {e}")
             return
@@ -315,6 +326,16 @@ class StockPredictionCommandLine:
 
 
     def predict_for_period(self, df, period):
+
+            
+            # Ensure model is trained
+            if self.mdl is None:
+                print(f"Error loading model: {e} - please train a model first.")
+                return
+            
+            df = self.dh.loadDataToDF()
+            
+            
             # Prepare the data by excluding the 'close' column and making sure the features exist
             prediction_data = df.iloc[-1:].drop(['close'], axis=1)
             volume = prediction_data['volume'].iloc[0] # Assume volume stays constant
@@ -353,6 +374,8 @@ class StockPredictionCommandLine:
             # List to store predicted prices and unstandardized values
             predicted_prices = []
             unstandardized_prices = []
+            
+            
 
             # Iterate over the prediction period
             for _ in range(period):
@@ -364,7 +387,8 @@ class StockPredictionCommandLine:
                 predicted_close = predicted_price[0]
                 
                 # Unstandardize the predicted close value
-                predicted_price_norm = self.mdl.unstandardiseVal(predicted_close)
+                #predicted_price_norm = self.mdl.unstandardiseVal(predicted_close)
+                predicted_price_norm = predicted_close
                 
                 # Store the unstandardized value
                 predicted_prices.append(predicted_close)
@@ -376,6 +400,9 @@ class StockPredictionCommandLine:
                 prediction_data['low'] = min(predicted_close, prediction_data['low'].iloc[0])
                 prediction_data['volume'] = volume  # Assume volume stays constant
                         
+            
+            self.dh.storeTempData(prediction_data)
+            print(prediction_data.head())
             
             # Print the predicted prices
             print(f"Predicted closing prices for {period} days:\n")

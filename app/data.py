@@ -12,6 +12,7 @@ class dataHelper():
     def __init__(self, outputfile, api_key=None):
         self.api_key = api_key if api_key else self.getKey()
         self.FILENAME = outputfile
+        self.temp = "TEMP.csv"
         
         
     # Reads the api key from the config file    
@@ -290,3 +291,12 @@ class dataHelper():
         print(f"Plot saved as {image_file}")
         plt.show()
          
+         
+    def appendToDataStore(self, close, timestamp):
+        data =[timestamp, close]
+        data.to_csv(self.FILENAME, mode='a', header=False)
+        print("Data appended successfully.")
+
+    def storeTempData(self, df):
+        df.to_csv(self.temp)
+        print("Data stored successfully.")
